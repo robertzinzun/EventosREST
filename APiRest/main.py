@@ -19,6 +19,17 @@ def listarEvento(idEvento:str):
 @app.put("/eventos/{idEvento}",tags=["Eventos"],summary="Modificar evento en base a su ID")
 def modificarEvento(idEvento:str):
     return {"mensaje":f"Modificando el evento con id:{idEvento}"}
+@app.get("/eventos/estatus/{estatus}",tags=["Eventos"],summary="Consultar eventos pos estatus")
+def consultarEventosPorEstatus(estatus:str):
+    return {"mensaje":f"Consultando eventos por el estatus:{estatus}"}
+@app.put("/eventos/estatus/{idEvento}/{estatus}",tags=["Eventos"],summary="Cambio de estatus de un evento")
+def cambioEstatusEvento(idEvento:str,estatus:str):
+    return {"mensaje":f"Cambio de estatus del evento con id:{idEvento} al estatus: {estatus}"}
+@app.put("/eventos/reprogramar/{idEvento}",tags=["Eventos"],summary="Reprogramar Evento")
+def reprogramarEvento(idEvento:str):
+    return {"mensaje":f"Reprogramanado el evento con id:{idEvento}"}
+
+
 if __name__ == '__main__':
    uvicorn.run("main:app",reload=True)
 
