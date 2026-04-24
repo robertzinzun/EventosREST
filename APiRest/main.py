@@ -10,7 +10,12 @@ def home():
     return "Bienvenido a la APIRest de Eventos"
 @app.post("/eventos",tags=["Eventos"],summary="Crear Evento",response_model=Salida)
 async def crearEvento(evento:EventoCreate)->Salida:
-    print(evento.model_dump(exclude_unset=True))
+    print(evento)
+    data=evento.model_dump()
+    data['fechaRegistro']=date.today()
+    data['estatus']='Captura'
+    data['participantes']=0
+    print(data)
     salida=Salida(codigo=200,mensaje="Creando un evento")
     return salida
 
@@ -39,18 +44,28 @@ def listarEvento(idEvento:str)->EventoSalida:
 
 @app.put("/eventos/{idEvento}",tags=["Eventos"],summary="Modificar evento en base a su ID",response_model=Salida)
 def modificarEvento(idEvento:str,evento:EventoUpdate)->Salida:
+    print(evento)
+    data=evento.model_dump(exclude_unset=True)
+    print(data)
     salida=Salida(codigo=200,mensaje=f"Modificando Evento "
                                      f"con id:{idEvento}")
     return salida
 @app.get("/eventos/estatus/{estatus}",tags=["Eventos"],summary="Consultar eventos pos estatus",response_model=EventosSalida)
 def consultarEventosPorEstatus(estatus:str)->EventosSalida:
-    evento = Evento(idEvento="1000", nombre="Platica Servicio Social",
+    estatus_permitidos=['Captura', 'Revision', 'Rechazado', 'Autorizado', 'Cancelado',
+             'Planeacion', 'Difusion', 'Pospuesto', 'Proceso',' Finalizado']
+    if estatus not in estatus_permitidos:
+        salida=EventosSalida(codigo=404,mensaje="Objeto no encontrado",eventos=None)
+    else:
+        evento = Evento(idEvento="1000", nombre="Platica Servicio Social",
                     fechaInicio=date.today(), fechaFin=date.today(),
                     cupo=100, estatus=estatus, descripcion="XYZ",
                     tipo="Platica", fechaRegistro=date.today(),
                     inscritos=10)
-    salida = EventoSalida(codigo=200, mensaje="Consultado evento",
-                          evento=evento)
+        eventos=[]
+        eventos.append(evento)
+        salida = EventosSalida(codigo=200, mensaje="Consultado evento",
+                          eventos=eventos)
     return salida
 @app.put("/eventos/estatus/{idEvento}/{estatus}",tags=["Eventos"],summary="Cambio de estatus de un evento",response_model=Salida)
 def cambioEstatusEvento(idEvento:str,estatus:str)->Salida:
