@@ -1,6 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI,Request
 from datetime import date
-from models import EventoCreate,Salida,EventoUpdate,EventoSalida,Evento,EventosSalida,EventoReprogramado
+from models import EventoCreate,Salida,EventoUpdate,EventoSalida,Evento,EventosSalida,EventoReprogramado,CambioEstatus
 import uvicorn
 
 app=FastAPI()
@@ -9,7 +9,7 @@ app=FastAPI()
 def home():
     return "Bienvenido a la APIRest de Eventos"
 @app.post("/eventos",tags=["Eventos"],summary="Crear Evento",response_model=Salida)
-async def crearEvento(evento:EventoCreate)->Salida:
+async def crearEvento(request:Request,evento:EventoCreate)->Salida:
     print(evento)
     data=evento.model_dump()
     data['fechaRegistro']=date.today()
@@ -20,12 +20,12 @@ async def crearEvento(evento:EventoCreate)->Salida:
     return salida
 
 @app.get("/eventos",tags=["Eventos"],summary="Listar Eventos",response_model=EventosSalida)
-async def listarEventos()->EventosSalida:
+async def listarEventos(request:Request)->EventosSalida:
     evento = Evento(idEvento="1000", nombre="Platica Servicio Social",
                     fechaInicio=date.today(), fechaFin=date.today(),
                     cupo=100, estatus="Pendiente", descripcion="XYZ",
                     tipo="Platica", fechaRegistro=date.today(),
-                    inscritos=10)
+                    participantes=10)
     lista=[]
     lista.append(evento)
     salida = EventosSalida(codigo=200, mensaje="Consultado eventos",
@@ -37,7 +37,7 @@ def listarEvento(idEvento:str)->EventoSalida:
                   fechaInicio=date.today(),fechaFin=date.today(),
                   cupo=100,estatus="Pendiente",descripcion="XYZ",
                   tipo="Platica",fechaRegistro=date.today(),
-                  inscritos=10)
+                  participantes=10)
     salida=EventoSalida(codigo=200,mensaje="Consultado evento",
                         evento=evento)
     return salida
@@ -61,15 +61,15 @@ def consultarEventosPorEstatus(estatus:str)->EventosSalida:
                     fechaInicio=date.today(), fechaFin=date.today(),
                     cupo=100, estatus=estatus, descripcion="XYZ",
                     tipo="Platica", fechaRegistro=date.today(),
-                    inscritos=10)
+                    participantes=10)
         eventos=[]
         eventos.append(evento)
         salida = EventosSalida(codigo=200, mensaje="Consultado evento",
                           eventos=eventos)
     return salida
-@app.put("/eventos/estatus/{idEvento}/{estatus}",tags=["Eventos"],summary="Cambio de estatus de un evento",response_model=Salida)
-def cambioEstatusEvento(idEvento:str,estatus:str)->Salida:
-    salida=Salida(codigo=200,mensaje=f"Cambio de estatus del evento con id:{idEvento} al estatus: {estatus}")
+@app.put("/eventos/modificar/estatus",tags=["Eventos"],summary="Cambio de estatus de un evento",response_model=Salida)
+def cambioEstatusEvento(cambioEstatus:CambioEstatus)->Salida:
+    salida=Salida(codigo=200,mensaje=f"Cambio de estatus del evento con id:{cambioEstatus.idEvento} al estatus: {cambioEstatus.estatus}")
     return salida
 @app.put("/eventos/reprogramar/{idEvento}",tags=["Eventos"],summary="Reprogramar Evento",response_model=Salida)
 def reprogramarEvento(idEvento:str,evento:EventoReprogramado):
