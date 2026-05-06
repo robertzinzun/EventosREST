@@ -39,9 +39,9 @@ class Evento(BaseModel):
     participantes:int
 
 class EventoSalida(Salida):
-    evento:Evento=None
+    evento:Evento|None=None
 class EventosSalida(Salida):
-    eventos:List[Evento]=None
+    eventos:List[Evento]|None=None
 class EventoReprogramado(BaseModel):
     fechaInicio:datetime
     fechaFin:datetime

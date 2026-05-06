@@ -15,52 +15,27 @@ async def crearEvento(request:Request,evento:EventoCreate)->Salida:
 
 @app.get("/eventos",tags=["Eventos"],summary="Listar Eventos",response_model=EventosSalida)
 async def listarEventos(request:Request)->EventosSalida:
-    evento = Evento(idEvento="1000", nombre="Platica Servicio Social",
-                    fechaInicio=date.today(), fechaFin=date.today(),
-                    cupo=100, estatus="Pendiente", descripcion="XYZ",
-                    tipo="Platica", fechaRegistro=date.today(),
-                    participantes=10)
-    lista=[]
-    lista.append(evento)
-    salida = EventosSalida(codigo=200, mensaje="Consultado eventos",
-                          eventos=lista)
-    return salida
+    eventoDAO=EventoDAO(request.app.cn.db)
+    return eventoDAO.consultaGeneral()
 @app.get("/eventos/{idEvento}",tags=["Eventos"],summary="Listar Evento",response_model=EventoSalida)
-def listarEvento(idEvento:str)->EventoSalida:
-    evento=Evento(idEvento=idEvento,nombre="Platica Servicio Social",
-                  fechaInicio=date.today(),fechaFin=date.today(),
-                  cupo=100,estatus="Pendiente",descripcion="XYZ",
-                  tipo="Platica",fechaRegistro=date.today(),
-                  participantes=10)
-    salida=EventoSalida(codigo=200,mensaje="Consultado evento",
-                        evento=evento)
-    return salida
+def listarEvento(request:Request,idEvento:str)->EventoSalida:
+    eventoDAO=EventoDAO(request.app.cn.db)
+    return eventoDAO.consultaPorID(idEvento)
 
 @app.put("/eventos/{idEvento}",tags=["Eventos"],summary="Modificar evento en base a su ID",response_model=Salida)
 def modificarEvento(idEvento:str,evento:EventoUpdate)->Salida:
     print(evento)
     data=evento.model_dump(exclude_unset=True)
     print(data)
+    if not data.keys():
+        print("json vacio")
     salida=Salida(codigo=200,mensaje=f"Modificando Evento "
                                      f"con id:{idEvento}")
     return salida
 @app.get("/eventos/estatus/{estatus}",tags=["Eventos"],summary="Consultar eventos pos estatus",response_model=EventosSalida)
-def consultarEventosPorEstatus(estatus:str)->EventosSalida:
-    estatus_permitidos=['Captura', 'Revision', 'Rechazado', 'Autorizado', 'Cancelado',
-             'Planeacion', 'Difusion', 'Pospuesto', 'Proceso',' Finalizado']
-    if estatus not in estatus_permitidos:
-        salida=EventosSalida(codigo=404,mensaje="Objeto no encontrado",eventos=None)
-    else:
-        evento = Evento(idEvento="1000", nombre="Platica Servicio Social",
-                    fechaInicio=date.today(), fechaFin=date.today(),
-                    cupo=100, estatus=estatus, descripcion="XYZ",
-                    tipo="Platica", fechaRegistro=date.today(),
-                    participantes=10)
-        eventos=[]
-        eventos.append(evento)
-        salida = EventosSalida(codigo=200, mensaje="Consultado evento",
-                          eventos=eventos)
-    return salida
+def consultarEventosPorEstatus(request:Request,estatus:str)->EventosSalida:
+    eventoDAO=EventoDAO(request.app.cn.db)
+    return eventoDAO.consultaPorEstatus(estatus)
 @app.put("/eventos/modificar/estatus",tags=["Eventos"],summary="Cambio de estatus de un evento",response_model=Salida)
 def cambioEstatusEvento(cambioEstatus:CambioEstatus)->Salida:
     salida=Salida(codigo=200,mensaje=f"Cambio de estatus del evento con id:{cambioEstatus.idEvento} al estatus: {cambioEstatus.estatus}")
