@@ -23,15 +23,9 @@ def listarEvento(request:Request,idEvento:str)->EventoSalida:
     return eventoDAO.consultaPorID(idEvento)
 
 @app.put("/eventos/{idEvento}",tags=["Eventos"],summary="Modificar evento en base a su ID",response_model=Salida)
-def modificarEvento(idEvento:str,evento:EventoUpdate)->Salida:
-    print(evento)
-    data=evento.model_dump(exclude_unset=True)
-    print(data)
-    if not data.keys():
-        print("json vacio")
-    salida=Salida(codigo=200,mensaje=f"Modificando Evento "
-                                     f"con id:{idEvento}")
-    return salida
+def modificarEvento(request:Request,idEvento:str,evento:EventoUpdate)->Salida:
+    eventoDAO=EventoDAO(request.app.cn.db)
+    return eventoDAO.modificar(evento,idEvento)
 @app.get("/eventos/estatus/{estatus}",tags=["Eventos"],summary="Consultar eventos pos estatus",response_model=EventosSalida)
 def consultarEventosPorEstatus(request:Request,estatus:str)->EventosSalida:
     eventoDAO=EventoDAO(request.app.cn.db)
@@ -41,10 +35,9 @@ def cambioEstatusEvento(cambioEstatus:CambioEstatus)->Salida:
     salida=Salida(codigo=200,mensaje=f"Cambio de estatus del evento con id:{cambioEstatus.idEvento} al estatus: {cambioEstatus.estatus}")
     return salida
 @app.put("/eventos/reprogramar/{idEvento}",tags=["Eventos"],summary="Reprogramar Evento",response_model=Salida)
-def reprogramarEvento(idEvento:str,evento:EventoReprogramado):
-    salida = Salida(codigo=200, mensaje=f"Reprogramando Evento "
-                                        f"con id:{idEvento}")
-    return salida
+def reprogramarEvento(request:Request,idEvento:str,evento:EventoReprogramado):
+   eventoDAO=EventoDAO(request.app.cn.db)
+   return eventoDAO.reprogramar(idEvento,evento)
 @app.on_event('startup')
 def startup():
     conexion=Conexion()

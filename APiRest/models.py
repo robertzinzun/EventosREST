@@ -1,5 +1,5 @@
 from pydantic import BaseModel,model_validator,Field
-from datetime import datetime
+from datetime import datetime,timezone
 from typing import List,Optional,Literal
 class EventoCreate(BaseModel):
     nombre:str
@@ -50,11 +50,11 @@ class EventoReprogramado(BaseModel):
 
     @model_validator(mode='after')
     def validarFechas(self):
-        fechaActual=datetime.today()
-        if self.fechaInicio > self.fechaFin or self.fechaInicio<=fechaActual:
+        fechaActual = datetime.now(timezone.utc)
+        if self.fechaInicio > self.fechaFin and fechaActual<=self.fechaInicio:
             raise ValueError('Error en las fechas, favor de revisar el periodo.')
         return self
 class CambioEstatus(BaseModel):
     idEvento:str
     estatus:Literal['Captura', 'Revision', 'Rechazado', 'Autorizado', 'Cancelado',
-             'Planeacion', 'Difusion', 'Pospuesto', 'Proceso',' Finalizado']
+             'Planeacion', 'Difusion', 'Pospuesto', 'Proceso','Finalizado']

@@ -1,6 +1,7 @@
 from pymongo import MongoClient
-from models import EventoCreate,Salida,EventosSalida,EventoSalida,EventoUpdate
+from models import EventoCreate,Salida,EventosSalida,EventoSalida,EventoUpdate,CambioEstatus,EventoReprogramado
 from datetime import datetime
+from bson import ObjectId
 DATABASEURL='mongodb://localhost:27017/'
 DATABASE='EventosDB'
 class Conexion:
@@ -81,7 +82,47 @@ class EventoDAO:
         return salida
     def modificar(self,evento:EventoUpdate,idEvento:str):
         eventoRec=self.view.find_one({"idEvento":idEvento})
+        salida=Salida(codigo=0,mensaje="")
         if eventoRec:
-            pass
+            data = evento.model_dump(exclude_unset=True)
+            result=None
+            if eventoRec['estatus']=='Captura':
+                if data.keys():
+                    result=self.col.update_one({"_id":ObjectId(idEvento)},
+                                               {"$set":data})
+                else:
+                    salida.codigo=500
+                    salida.mensaje="Debes proporcionar un valor a modificar."
+            elif eventoRec['estatus']=="Difusion" and data.__contains__("cupo"):
+                result = self.col.update_one({"_id": ObjectId(idEvento)},
+                                             {"$set":{"cupo":data['cupo']}})
+            if result!=None and result.modified_count>0:
+                salida.codigo=200
+                salida.mensaje=f"El evento con id:{idEvento} se modifico con exito."
+            else:
+                salida.codigo=404
+                salida.mensaje="El estatus del evento no es Captura o Difusion."
         else:
-            pass
+            salida.codigo=404
+            salida.mensaje=f"El evento con id:{idEvento} no existe."
+        return salida
+    def reprogramar(self,idEvento,evento:EventoReprogramado):
+        respuesta=self.consultaPorID(idEvento)
+        salida=Salida(codigo=0,mensaje="")
+        if respuesta.codigo==200:
+            if respuesta.evento['estatus']=='Planeacion':
+                data=evento.model_dump(exclude_unset=True)
+                result=self.col.update_one({"_id":ObjectId(idEvento)},{"$set":data})
+                if result.modified_count>0:
+                    salida.codigo=200
+                    salida.mensaje=f"Evento con id:{idEvento} reprogramado exitosamente."
+                else:
+                    salida.codigo=500
+                    salida.mensaje="El evento no existe o no se pudo reprogramar con exito"
+            else:
+                salida.codigo=404
+                salida.mensaje="El evento no se encuentra en planeación para su reprogramación."
+        else:
+            salida.codigo=404
+            salida.mensaje=f"El evento con id:{idEvento} no existe."
+        return salida
