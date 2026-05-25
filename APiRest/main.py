@@ -2,7 +2,7 @@ from fastapi import Depends,FastAPI,Request,HTTPException,status
 from models import EventoCreate,Salida,EventoUpdate,EventoSalida,EventosSalida,EventoReprogramado,CambioEstatus,Presupuesto,Usuario
 import uvicorn
 from dao import Conexion,EventoDAO
-from security import getUser
+from security import getUser,RoleChecker
 app=FastAPI()
 
 
@@ -14,9 +14,10 @@ def home():
 async def crearEvento(request:Request,evento:EventoCreate)->Salida:
     eventoDAO=EventoDAO(request.app.cn.db)
     return eventoDAO.agregar(evento)
+roles=RoleChecker(["Supervisor","Organizador","Participante"])
 @app.get("/eventos",tags=["Eventos"],summary="Listar Eventos",response_model=EventosSalida)
 #async def listarEventos(request:Request)->EventosSalida:
-async def listarEventos(user:Usuario=Depends(getUser))->EventosSalida:
+async def listarEventos(user:Usuario=Depends(roles))->EventosSalida:
         cn=Conexion(user.username,user.password)
         #eventoDAO=EventoDAO(request.app.cn.db)
         eventoDAO = EventoDAO(cn.db)
