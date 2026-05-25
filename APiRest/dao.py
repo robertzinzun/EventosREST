@@ -1,17 +1,17 @@
 from pymongo import MongoClient
-from models import EventoCreate,Salida,EventosSalida,EventoSalida,EventoUpdate,CambioEstatus,EventoReprogramado
-from datetime import datetime
+from models import EventoCreate,Salida,EventosSalida,EventoSalida,EventoUpdate,CambioEstatus,EventoReprogramado,Presupuesto,Usuario
+from datetime import datetime,timezone
 from bson import ObjectId
-DATABASEURL='mongodb://localhost:27017/'
-DATABASE='EventosDB'
+#DATABASEURL=f'mongodb://localhost:27017/'
+DATABASE = 'EventosDB'
 class Conexion:
     _cliente=None
     _db=None
-    def __init__(self):
+    def __init__(self,user,password):
         try:
-            self._cliente=MongoClient(DATABASEURL)
-            self._db=self._cliente.EventosDB
-            #self._db=self._cliente[DATABASE]
+            self.DATABASEURL=f'mongodb://{user}:{password}@localhost:27017/?authSource=admin'
+            self._cliente=MongoClient(self.DATABASEURL)
+            self._db=self._cliente[DATABASE]
             print(f"Conectado con la BD: {DATABASE}")
         except Exception as ex:
             print(f"Error al conectar con la BD a causa de: {ex}")
@@ -23,7 +23,10 @@ class Conexion:
             print(f"Error al cerrar con la BD a causa de: {ex}")
     @property
     def db(self):
-        return self._db
+        try:
+            return self._db
+        except Exception as ex:
+            print('Error al obtener la conexion')
 
 class EventoDAO:
     def __init__(self,db):
@@ -57,11 +60,16 @@ class EventoDAO:
     def consultaPorID(self,idEvento:str):
         salida=EventoSalida(codigo=0,mensaje="",evento=None)
         try:
-            salida.codigo=200
-            salida.mensaje="Listado del evento"
-            salida.evento=self.view.find_one({"idEvento":idEvento})
+            evento=self.view.find_one({"idEvento":idEvento})
+            if evento:
+                salida.codigo=200
+                salida.mensaje="Listado del evento"
+                salida.evento=evento
+            else:
+                salida.codigo=404
+                salida.mensaje=f'El evento con id {idEvento} no existe.'
         except Exception as ex:
-            salida.codigo=400
+            salida.codigo=500
             salida.mensaje=f"Error:{ex}"
         return salida
     def consultaPorEstatus(self,estatus):
@@ -126,3 +134,87 @@ class EventoDAO:
             salida.codigo=404
             salida.mensaje=f"El evento con id:{idEvento} no existe."
         return salida
+
+    def cambiarEstatus(self, data: CambioEstatus):
+        salida = Salida(codigo=0, mensaje="")
+        resp = self.consultaPorID(data.idEvento)
+        transiciones={
+            "Captura":["Revision"],
+            "Revision":["Rechazado","Autorizado","Cancelado"],
+            "Rechazado":["Captura"],
+            "Autorizado":["Planeacion"],
+            "Planeacion":["Difusion","Pospuesto"],
+            "Pospuesto":["Difusion"],
+            "Difusion":["Proceso"],
+            "Proceso":["Cancelado","Finalizado"]
+        }
+        if resp.codigo==200:
+            evento=resp.evento
+            estatusValido=transiciones.get(evento["estatus"],[])
+            if data.estatus in estatusValido:
+                result = self.col.update_one({"_id": ObjectId(data.idEvento)},{"$set": {"estatus": data.estatus}})
+                if result.modified_count > 0:
+                    salida.codigo = 200
+                    salida.mensaje = f"El evento se cambio del estatus de {evento['estatus']} a {data.estatus}"
+                else:
+                    salida.codigo = 404
+                    salida.mensaje = "Evento no econtrado"
+            else:
+                salida.codigo=400
+                salida.mensaje=f'No se puede cambiar del estatus {evento['estatus']} a {data.estatus}.'
+        else:
+            salida.codigo=resp.codigo
+            salida.mensaje=resp.mensaje
+        return salida
+    def eliminarEvento(self,idEvento:str):
+        salida=Salida(codigo=0,mensaje="")
+        resp=self.consultaPorID(idEvento)
+        if resp.codigo==200 and resp.evento['estatus']=='Cancelado':
+            result=self.col.delete_one({"_id":ObjectId(idEvento)})
+            if result.deleted_count>0:
+                salida.codigo=200
+                salida.mensaje=f"El evento con id:{idEvento} se elimino con exito."
+            else:
+                salida.codigo=400
+                salida.mensaje="No se pudo eliminar el evento, consulta al Administrador."
+        else:
+            salida.codigo=400
+            salida.mensaje="El evento no existe o no se encuentra Cancelado."
+        return salida
+    def asignarPresupuesto(self,idEvento:str,presupuesto:Presupuesto):
+        salida=Salida(codigo=0,mensaje="")
+        resp=self.consultaPorID(idEvento)
+        if resp.codigo==200 and resp.evento['estatus']=='Captura':
+            fechaCreacion=datetime.now(timezone.utc)
+            if fechaCreacion<presupuesto.fechaApertura:
+                data=presupuesto.model_dump()
+                data['fechaCreacion']=fechaCreacion
+                data['estatus']='Elaboracion'
+                data['gastoReal']=0
+                result=self.col.update_one({"_id":ObjectId(idEvento),"estatus":"Captura"},{"$set":{"presupuesto":data}})
+                if result.modified_count>0:
+                    salida.codigo=200
+                    salida.mensaje="Presupuesto asignado con exito."
+                else:
+                    salida.mensaje=400
+                    salida.mensaje="Error al asignar el presupuesto,intenta más tarde."
+            else:
+                salida.codigo=400
+                salida.mensaje="La fecha de creación debe ser menor a la fecha de apertura del presupuesto."
+        else:
+            salida.codigo=400
+            salida.mensaje=f"El evento con id:{idEvento} no existe o no esta en Captura."
+        return salida
+
+class UsuarioDAO:
+    def __init__(self,db):
+        self.db=db
+        self.col=self.db.usuarios
+        self.view=self.db.usuariosView
+    def autenticar(self,username,password):
+        result=self.view.find_one({"username":username,"password":password,"estatus":True})
+        if result:
+            usuario=Usuario(**result)
+            return usuario
+        else:
+            return None

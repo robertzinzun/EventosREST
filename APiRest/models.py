@@ -58,3 +58,24 @@ class CambioEstatus(BaseModel):
     idEvento:str
     estatus:Literal['Captura', 'Revision', 'Rechazado', 'Autorizado', 'Cancelado',
              'Planeacion', 'Difusion', 'Pospuesto', 'Proceso','Finalizado']
+class Presupuesto(BaseModel):
+    montoEstimado:float=Field(gt=0)
+    fechaApertura:datetime
+    fechaCierre:datetime
+    @model_validator(mode='after')
+    def comprobarFechas(self):
+        if self.fechaApertura>self.fechaCierre:
+            raise ValueError('La fecha de Apertura debe ser menor a la fecha de Cierre')
+        return self
+class Usuario(BaseModel):
+    idUsuario:str
+    nombre:str
+    telefono:str
+    email:str
+    genero:str
+    password:str
+    tipo:str
+    estatus:bool
+    rol:str
+    fechaRegistro:datetime
+    username:str
